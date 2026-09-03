@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import { obtenerToken } from "@/lib/auth";
 
 export interface ResumenReportes {
   ingresosEsteMes: number;
@@ -50,4 +51,16 @@ export interface ReporteCompleto {
 export async function getReportes(): Promise<ReporteCompleto> {
   const res = await api.get<ReporteCompleto>("/api/admin/reportes");
   return res.data;
+}
+
+export async function getResumenReportesSoap(): Promise<ResumenReportes> {
+  const token = obtenerToken();
+  const res = await fetch("/api/soap/resumen-reportes", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo cargar el resumen");
+  }
+  return res.json();
 }
