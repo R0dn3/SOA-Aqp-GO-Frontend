@@ -1,4 +1,5 @@
 // lib/api/reservas.ts
+import { obtenerToken } from "@/lib/auth";
 import api from "@/lib/axios";
 
 export interface AcompananteRequest {
@@ -52,9 +53,20 @@ export async function crearReserva(data: ReservaRequest): Promise<ReservaRespons
   return res.data;
 }
 
-export async function getMisReservas(): Promise<ReservaResponse[]> {
-  const res = await api.get<ReservaResponse[]>("/api/reservas/mis-reservas");
-  return res.data;
+//export async function getMisReservas(): Promise<ReservaResponse[]> {
+//const res = await api.get<ReservaResponse[]>("/api/reservas/mis-reservas");
+//return res.data;
+//}
+export async function getMisReservasSoap(): Promise<ReservaResponse[]> {
+  const token = obtenerToken();
+  const res = await fetch("/api/soap/mis-reservas", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudieron cargar tus reservas");
+  }
+  return res.json();
 }
 
 export async function getReserva(id: string): Promise<ReservaResponse> {
