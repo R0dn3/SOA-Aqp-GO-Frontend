@@ -20,7 +20,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMisReservas, cancelarReserva, ReservaResponse } from "@/lib/reservas";
+import { getMisReservasSoap, cancelarReserva, ReservaResponse } from "@/lib/reservas";
 import { ModalPago } from "@/components/layout/ModalPago";
 import PerfilCard from "@/components/layout/PerfilCard";
 
@@ -57,7 +57,7 @@ export default function DashboardPage() {
     }
     setUsuario(JSON.parse(stored));
 
-    getMisReservas()
+    getMisReservasSoap()
       .then(setReservas)
       .catch((err) => {
         console.error(err);
@@ -311,11 +311,10 @@ export default function DashboardPage() {
                 <button
                   onClick={irPaginaAnterior}
                   disabled={paginaActual === 0}
-                  className={`px-4 py-2 rounded-lg flex items-center gap-2 transition ${
-                    paginaActual === 0
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-white text-[#d4663a] hover:bg-gray-100 shadow"
-                  }`}
+                  className={`px-4 py-2 rounded-lg flex items-center gap-2 transition ${paginaActual === 0
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-[#d4663a] hover:bg-gray-100 shadow"
+                    }`}
                 >
                   <ChevronDown className="rotate-90" size={16} /> Anterior
                 </button>
@@ -325,11 +324,10 @@ export default function DashboardPage() {
                 <button
                   onClick={irPaginaSiguiente}
                   disabled={paginaActual + 1 >= totalPaginas}
-                  className={`px-4 py-2 rounded-lg flex items-center gap-2 transition ${
-                    paginaActual + 1 >= totalPaginas
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-white text-[#d4663a] hover:bg-gray-100 shadow"
-                  }`}
+                  className={`px-4 py-2 rounded-lg flex items-center gap-2 transition ${paginaActual + 1 >= totalPaginas
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-[#d4663a] hover:bg-gray-100 shadow"
+                    }`}
                 >
                   Siguiente <ChevronDown className="-rotate-90" size={16} />
                 </button>
