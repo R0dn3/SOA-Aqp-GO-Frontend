@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
 </soapenv:Envelope>`;
 
     // 3. Mandarlo al servicio SOAP
+    console.log("\n📤 SOAP REQUEST enviado al backend:\n" + envelope + "\n");
+
     const soapRes = await fetch(`${API_URL}/ws`, {
         method: "POST",
         headers: { "Content-Type": "text/xml" },
@@ -44,6 +46,7 @@ export async function GET(request: NextRequest) {
     });
 
     const xmlText = await soapRes.text();
+    console.log("📥 SOAP RESPONSE recibido del backend:\n" + xmlText + "\n");
 
     // 4. Traducir XML -> JSON
     const parser = new XMLParser({
