@@ -15,7 +15,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, Users,
   CalendarCheck, MapPin, Download, AlertTriangle, Loader2,
 } from "lucide-react";
-import { getReportes, ReporteCompleto } from "@/lib/reportes";
+import { getReportes, getResumenReportesSoap, ReporteCompleto } from "@/lib/reportes";
 
 // ── Paleta cálida del proyecto ─────────────────────────────
 const C = {
@@ -102,8 +102,10 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getReportes()
-      .then(setData)
+    Promise.all([getReportes(), getResumenReportesSoap()])
+      .then(([reporteCompleto, resumenSoap]) => {
+        setData({ ...reporteCompleto, resumen: resumenSoap });
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -215,7 +217,7 @@ export default function ReportesPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0e8e0" />
                   <XAxis dataKey="mes" tick={{ fontSize: 12, fill: C.textoMuted }} />
-                  <YAxis tick={{ fontSize: 12, fill: C.textoMuted }} tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
+                  <YAxis tick={{ fontSize: 12, fill: C.textoMuted }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area
                     type="monotone" dataKey="ingresos" name="Ingresos"
