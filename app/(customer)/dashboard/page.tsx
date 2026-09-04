@@ -20,7 +20,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMisReservasSoap, cancelarReserva, ReservaResponse } from "@/lib/reservas";
+import { getMisReservasSoap, getReservaSoap, cancelarReserva, ReservaResponse } from "@/lib/reservas";
 import { ModalPago } from "@/components/layout/ModalPago";
 import PerfilCard from "@/components/layout/PerfilCard";
 
@@ -43,6 +43,8 @@ export default function DashboardPage() {
 
   // Detalle expandido
   const [reservaExpandida, setReservaExpandida] = useState<string | null>(null);
+  const [detalleSoap, setDetalleSoap] = useState<Record<string, ReservaResponse>>({});
+  const [cargandoDetalle, setCargandoDetalle] = useState<string | null>(null);
 
   // ----- PAGINACIÓN -----
   const [paginaActual, setPaginaActual] = useState(0);
@@ -259,9 +261,24 @@ export default function DashboardPage() {
 
                   {/* Ver detalle */}
                   <button
-                    onClick={() =>
-                      setReservaExpandida(reservaExpandida === reserva.id ? null : reserva.id)
-                    }
+                    onClick={async () => {
+                      if (reservaExpandida === reserva.id) {
+                        setReservaExpandida(null);
+                        return;
+                      }
+                      setReservaExpandida(reserva.id);
+                      if (!detalleSoap[reserva.id]) {
+                        setCargandoDetalle(reserva.id);
+                        try {
+                          const detalle = await getReservaSoap(reserva.id);
+                          setDetalleSoap((prev) => ({ ...prev, [reserva.id]: detalle }));
+                        } catch (err) {
+                          console.error(err);
+                        } finally {
+                          setCargandoDetalle(null);
+                        }
+                      }
+                    }}
                     className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg flex items-center gap-1 transition-colors"
                   >
                     {reservaExpandida === reserva.id ? (
@@ -282,22 +299,23 @@ export default function DashboardPage() {
                       className="overflow-hidden"
                     >
                       <div className="mt-4 pt-4 border-t border-gray-100 text-sm text-gray-600 space-y-2">
-                        <p><span className="font-medium">Reserva ID:</span> {reserva.id}</p>
-                        <p><span className="font-medium">Paquete:</span> {reserva.paqueteNombre}</p>
-                        <p><span className="font-medium">Fecha de salida:</span> {new Date(reserva.fechaSalida).toLocaleDateString()}</p>
-                        <p><span className="font-medium">Personas:</span> {reserva.numPersonas}</p>
-                        <p><span className="font-medium">Precio total:</span> S/ {reserva.precioTotal?.toFixed(2)}</p>
-                        {reserva.acompanantes.length > 0 && (
+                        {cargandoDetalle === reserva.id && <p className="italic">Consultando detalle por SOAP...</p>}
+                        <p><span className="font-medium">Reserva ID:</span> {(detalleSoap[reserva.id] ?? reserva).id}</p>
+                        <p><span className="font-medium">Paquete:</span> {(detalleSoap[reserva.id] ?? reserva).paqueteNombre}</p>
+                        <p><span className="font-medium">Fecha de salida:</span> {new Date((detalleSoap[reserva.id] ?? reserva).fechaSalida).toLocaleDateString()}</p>
+                        <p><span className="font-medium">Personas:</span> {(detalleSoap[reserva.id] ?? reserva).numPersonas}</p>
+                        <p><span className="font-medium">Precio total:</span> S/ {(detalleSoap[reserva.id] ?? reserva).precioTotal?.toFixed(2)}</p>
+                        {(detalleSoap[reserva.id] ?? reserva).acompanantes.length > 0 && (
                           <div>
                             <p className="font-medium mb-1">Acompañantes:</p>
                             <ul className="list-disc pl-5">
-                              {reserva.acompanantes.map((a, i) => (
+                              {(detalleSoap[reserva.id] ?? reserva).acompanantes.map((a, i) => (
                                 <li key={i}>{a.nombreCompleto} – {a.dniPasaporte}</li>
                               ))}
                             </ul>
                           </div>
                         )}
-                        <p><span className="font-medium">Creada el:</span> {new Date(reserva.createdAt).toLocaleString()}</p>
+                        <p><span className="font-medium">Creada el:</span> {new Date((detalleSoap[reserva.id] ?? reserva).createdAt).toLocaleString()}</p>
                       </div>
                     </motion.div>
                   )}
