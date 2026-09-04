@@ -92,3 +92,20 @@ export async function getReservaSoap(id: string): Promise<ReservaResponse> {
   }
   return res.json();
 }
+
+export async function crearReservaSoap(data: ReservaRequest): Promise<{ id: string; precioTotal: number }> {
+  const token = obtenerToken();
+  const res = await fetch("/api/soap/crear-reserva", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo crear la reserva");
+  }
+  return res.json();
+}
