@@ -8,7 +8,7 @@ import {
   Loader2, CreditCard, X, AlertCircle, ChevronRight,
 } from "lucide-react";
 import { obtenerPaquetes } from "@/lib/paquetes";
-import { crearReserva, procesarPago, AcompananteRequest } from "@/lib/reservas";
+import { crearReservaSoap, procesarPago, AcompananteRequest } from "@/lib/reservas";
 import { obtenerUsuarioLocal } from "@/lib/auth";
 import api from "@/lib/axios";
 import { PaqueteResumen } from "@/types";
@@ -32,11 +32,10 @@ function PasoIndicador({ paso, actual }: { paso: number; actual: Paso }) {
   const activo = paso === actual;
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-        completado ? "bg-emerald-500 text-white" :
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${completado ? "bg-emerald-500 text-white" :
         activo ? "bg-[#c7663c] text-white" :
-        "bg-gray-200 text-gray-400"
-      }`}>
+          "bg-gray-200 text-gray-400"
+        }`}>
         {completado ? <CheckCircle2 className="h-4 w-4" /> : paso}
       </div>
       <span className={`text-xs hidden sm:block ${activo ? "text-[#c7663c] font-semibold" : "text-gray-400"}`}>
@@ -120,9 +119,8 @@ function ModalPago({
               {metodos.map((m) => (
                 <button key={m.id}
                   onClick={() => setMetodo(m.id)}
-                  className={`py-2 rounded-lg text-xs font-bold text-white transition-all ${m.color} ${
-                    metodo === m.id ? "ring-2 ring-offset-1 ring-gray-400 scale-105" : "opacity-60 hover:opacity-80"
-                  }`}>
+                  className={`py-2 rounded-lg text-xs font-bold text-white transition-all ${m.color} ${metodo === m.id ? "ring-2 ring-offset-1 ring-gray-400 scale-105" : "opacity-60 hover:opacity-80"
+                    }`}>
                   {m.label}
                 </button>
               ))}
@@ -167,9 +165,8 @@ function ModalPago({
 
           {(metodo === "YAPE" || metodo === "PLIN") && (
             <div className="bg-gray-50 rounded-xl p-4 text-center space-y-2">
-              <div className={`w-20 h-20 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-2xl ${
-                metodo === "YAPE" ? "bg-purple-600" : "bg-emerald-500"
-              }`}>
+              <div className={`w-20 h-20 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-2xl ${metodo === "YAPE" ? "bg-purple-600" : "bg-emerald-500"
+                }`}>
                 QR
               </div>
               <p className="text-sm text-gray-600">Escanea el código QR con {metodo === "YAPE" ? "Yape" : "Plin"}</p>
@@ -260,7 +257,7 @@ export default function ReservarPage() {
     : 0;
 
   // ── Paso 1: completar datos personales ───────────────────
-  
+
 
   // ── Paso 2: validar datos de la reserva ──────────────────
   function validarReserva() {
@@ -294,7 +291,7 @@ export default function ReservarPage() {
     setError("");
     setCargando(true);
     try {
-      const res = await crearReserva({
+      const res = await crearReservaSoap({
         paqueteId,
         fechaSalida: fecha,
         numPersonas,
@@ -303,7 +300,7 @@ export default function ReservarPage() {
       setReservaCreada({ id: res.id, precioTotal: res.precioTotal });
       setPaso(3);
     } catch (err: any) {
-      setError(err?.response?.data?.error || "Error al crear la reserva");
+      setError(err.message || "Error al crear la reserva");
     } finally {
       setCargando(false);
     }
@@ -358,7 +355,7 @@ export default function ReservarPage() {
       {/* Indicador de pasos */}
       <div className="max-w-lg mx-auto mb-8">
         <div className="relative flex items-center justify-between">
-          
+
           {[1, 2, 3].map((p) => (
             <PasoIndicador key={p} paso={p} actual={paso} />
           ))}
@@ -422,7 +419,7 @@ export default function ReservarPage() {
 
           <div className="p-8 space-y-6">
 
-            
+
 
             {/* ─── PASO 2: Datos de la reserva ─── */}
             {paso === 1 && (
@@ -470,7 +467,7 @@ export default function ReservarPage() {
                           setAcompanantes([]);
                         }}
                         className="w-full border border-gray-200 p-2.5 pl-9 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c7663c]/30 focus:border-[#c7663c]">
-                        {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                           <option key={n} value={n}>{n} persona{n > 1 ? "s" : ""}</option>
                         ))}
                       </select>
@@ -624,7 +621,7 @@ export default function ReservarPage() {
               )}
               {paso === 1 && <div />}
 
-              
+
               {paso === 1 && (
                 <button onClick={validarReserva}
                   className="px-6 py-2.5 bg-[#c7663c] hover:bg-[#a9552f] text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
