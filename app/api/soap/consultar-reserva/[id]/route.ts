@@ -5,8 +5,14 @@ export const dynamic = "force-dynamic";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-    const { id } = params;
+// Definimos el tipo de params como una Promesa según el estándar de Next.js 15+
+interface RouteParams {
+    params: Promise<{ id: string }>;
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
+    // CORRECCIÓN: Desempaquetamos la promesa 'params' usando await antes de usar 'id'
+    const { id } = await params;
 
     const envelope = `<?xml version="1.0"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:res="http://aqpgo.com/reservas">
@@ -39,6 +45,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const r = body?.consultarReservaResponse;
+
+    if (!r) {
+        return NextResponse.json({ error: "Estructura de respuesta inválida" }, { status: 500 });
+    }
 
     return NextResponse.json({
         id: r.id,
