@@ -83,3 +83,12 @@ export async function procesarPago(data: PagoRequest): Promise<PagoResponse> {
   const res = await api.post<PagoResponse>("/api/pagos", data);
   return res.data;
 }
+
+export async function getReservaSoap(id: string): Promise<ReservaResponse> {
+  const res = await fetch(`/api/soap/consultar-reserva/${id}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo cargar el detalle de la reserva");
+  }
+  return res.json();
+}
