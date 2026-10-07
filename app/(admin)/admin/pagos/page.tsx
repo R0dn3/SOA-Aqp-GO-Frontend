@@ -1,4 +1,4 @@
-
+// app/(admin)/admin/pagos/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
@@ -12,38 +12,58 @@ import {
   Search, CheckCircle2, Clock, XCircle,
   TrendingUp, Loader2, AlertCircle,
 } from "lucide-react";
-import { getPagosAdmin, getPagoStats, PagoAdminDto, PagoStatsDto } from "@/lib/admin";
+import {
+  getPagosAdmin, getPagoStats, PagoAdminDto, PagoStatsDto,
+  getMetodosPago, actualizarMetodoPago, MetodoPagoConfigDto,
+} from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 
 const ESTADO_STYLES: Record<string, string> = {
   VERIFICADO: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  PENDIENTE:  "bg-amber-100 text-amber-700 border-amber-200",
-  RECHAZADO:  "bg-red-100 text-red-600 border-red-200",
+  PENDIENTE: "bg-amber-100 text-amber-700 border-amber-200",
+  RECHAZADO: "bg-red-100 text-red-600 border-red-200",
 };
 
 const METODO_LABELS: Record<string, string> = {
-  TARJETA:       "Tarjeta",
-  YAPE:          "Yape",
-  PLIN:          "Plin",
+  TARJETA: "Tarjeta",
+  YAPE: "Yape",
+  PLIN: "Plin",
   TRANSFERENCIA: "Transferencia",
-  EFECTIVO:      "Efectivo",
+  EFECTIVO: "Efectivo",
 };
 
+const METODOS_ORDEN: Array<MetodoPagoConfigDto["metodo"]> =
+  ["YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "EFECTIVO"];
+
 export default function PagosAdminPage() {
-  const [pagos, setPagos]           = useState<PagoAdminDto[]>([]);
-  const [stats, setStats]           = useState<PagoStatsDto | null>(null);
-  const [cargando, setCargando]     = useState(true);
-  const [error, setError]           = useState("");
-  const [search, setSearch]         = useState("");
+  const [pagos, setPagos] = useState<PagoAdminDto[]>([]);
+  const [stats, setStats] = useState<PagoStatsDto | null>(null);
+  const [metodos, setMetodos] = useState<MetodoPagoConfigDto[]>([]);
+  const [actualizandoMetodo, setActualizandoMetodo] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [filtroMetodo, setFiltroMetodo] = useState("todos");
 
   useEffect(() => {
-    Promise.all([getPagosAdmin(), getPagoStats()])
-      .then(([p, s]) => { setPagos(p); setStats(s); })
+    Promise.all([getPagosAdmin(), getPagoStats(), getMetodosPago()])
+      .then(([p, s, m]) => { setPagos(p); setStats(s); setMetodos(m); })
       .catch(() => setError("Error al cargar los pagos"))
       .finally(() => setCargando(false));
   }, []);
+
+  async function toggleMetodo(metodo: string, nuevoActivo: boolean) {
+    setActualizandoMetodo(metodo);
+    try {
+      const actualizado = await actualizarMetodoPago(metodo, nuevoActivo);
+      setMetodos((prev) => [...prev.filter((m) => m.metodo !== metodo), actualizado]);
+    } catch {
+      setError("No se pudo actualizar el método de pago");
+    } finally {
+      setActualizandoMetodo(null);
+    }
+  }
 
   const filtered = pagos.filter((p) => {
     const matchSearch =
@@ -70,14 +90,47 @@ export default function PagosAdminPage() {
         </div>
       )}
 
+      {/* Métodos de pago habilitados */}
+      <div className="bg-white border rounded-xl p-5 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800">Métodos de pago habilitados</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Desactiva un método para bloquearlo en tiempo real — el orquestador rechaza
+            automáticamente cualquier intento de pago con un método desactivado.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {METODOS_ORDEN.map((m) => {
+            const config = metodos.find((x) => x.metodo === m);
+            const activo = config?.activo ?? true;
+            return (
+              <button key={m}
+                disabled={actualizandoMetodo === m}
+                onClick={() => toggleMetodo(m, !activo)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 disabled:opacity-50 ${activo
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                  : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                  }`}>
+                {actualizandoMetodo === m
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : activo ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                {METODO_LABELS[m]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Verificados",   value: stats?.pagosVerificados ?? 0,  icon: <CheckCircle2 className="h-4 w-4" />, color: "text-emerald-600 bg-emerald-50" },
-          { label: "Pendientes",    value: stats?.pagosPendientes ?? 0,   icon: <Clock className="h-4 w-4" />,        color: "text-amber-600 bg-amber-50" },
-          { label: "Rechazados",    value: stats?.pagosRechazados ?? 0,   icon: <XCircle className="h-4 w-4" />,      color: "text-red-600 bg-red-50" },
-          { label: "Monto cobrado", value: `$${(stats?.montoTotalVerificado ?? 0).toLocaleString()}`,
-            icon: <TrendingUp className="h-4 w-4" />, color: "text-purple-600 bg-purple-50" },
+          { label: "Verificados", value: stats?.pagosVerificados ?? 0, icon: <CheckCircle2 className="h-4 w-4" />, color: "text-emerald-600 bg-emerald-50" },
+          { label: "Pendientes", value: stats?.pagosPendientes ?? 0, icon: <Clock className="h-4 w-4" />, color: "text-amber-600 bg-amber-50" },
+          { label: "Rechazados", value: stats?.pagosRechazados ?? 0, icon: <XCircle className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
+          {
+            label: "Monto cobrado", value: `$${(stats?.montoTotalVerificado ?? 0).toLocaleString()}`,
+            icon: <TrendingUp className="h-4 w-4" />, color: "text-purple-600 bg-purple-50"
+          },
         ].map((s) => (
           <div key={s.label} className="bg-white border rounded-xl p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color}`}>{s.icon}</div>
@@ -157,8 +210,8 @@ export default function PagosAdminPage() {
                 <TableCell>
                   <Badge variant="outline" className={ESTADO_STYLES[p.estado] ?? ""}>
                     {p.estado === "VERIFICADO" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                    {p.estado === "PENDIENTE"  && <Clock className="h-3 w-3 mr-1" />}
-                    {p.estado === "RECHAZADO"  && <XCircle className="h-3 w-3 mr-1" />}
+                    {p.estado === "PENDIENTE" && <Clock className="h-3 w-3 mr-1" />}
+                    {p.estado === "RECHAZADO" && <XCircle className="h-3 w-3 mr-1" />}
                     {p.estado.charAt(0) + p.estado.slice(1).toLowerCase()}
                   </Badge>
                 </TableCell>

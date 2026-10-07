@@ -49,13 +49,18 @@ export interface PagoAdminDto {
   referencia: string;
   fechaPago: string;
 }
- 
+
 export interface PagoStatsDto {
   totalPagos: number;
   pagosVerificados: number;
   pagosPendientes: number;
   pagosRechazados: number;
   montoTotalVerificado: number;
+}
+
+export interface MetodoPagoConfigDto {
+  metodo: "TARJETA" | "YAPE" | "PLIN" | "TRANSFERENCIA" | "EFECTIVO";
+  activo: boolean;
 }
 
 export async function getStats(): Promise<StatsDto> {
@@ -77,15 +82,25 @@ export async function getPagosAdmin(): Promise<PagoAdminDto[]> {
   const res = await api.get<PagoAdminDto[]>("/api/admin/pagos");
   return res.data;
 }
- 
+
 export async function getPagoStats(): Promise<PagoStatsDto> {
   const res = await api.get<PagoStatsDto>("/api/admin/pagos/stats");
   return res.data;
 }
- 
+
 export async function cambiarEstadoReserva(
   id: string,
   estado: string
 ): Promise<void> {
   await api.patch(`/api/reservas/${id}/estado`, { estado });
+}
+
+export async function getMetodosPago(): Promise<MetodoPagoConfigDto[]> {
+  const res = await api.get<MetodoPagoConfigDto[]>("/api/admin/metodos-pago");
+  return res.data;
+}
+
+export async function actualizarMetodoPago(metodo: string, activo: boolean): Promise<MetodoPagoConfigDto> {
+  const res = await api.patch<MetodoPagoConfigDto>(`/api/admin/metodos-pago/${metodo}`, { activo });
+  return res.data;
 }

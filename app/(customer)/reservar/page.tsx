@@ -1,3 +1,4 @@
+//app/(customer)/reservar/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import {
   Loader2, CreditCard, X, AlertCircle, ChevronRight,
 } from "lucide-react";
 import { obtenerPaquetes } from "@/lib/paquetes";
-import { crearReservaSoap, procesarPago, AcompananteRequest } from "@/lib/reservas";
+import { reservarYPagarSoap, AcompananteRequest } from "@/lib/reservas";
 import { obtenerUsuarioLocal } from "@/lib/auth";
 import api from "@/lib/axios";
 import { PaqueteResumen } from "@/types";
@@ -23,6 +24,13 @@ interface UsuarioLocal {
   telefono?: string;
   dniPasaporte?: string;
   rol: string;
+}
+
+interface DatosReserva {
+  paqueteId: string;
+  fechaSalida: string;
+  numPersonas: number;
+  acompanantes: AcompananteRequest[];
 }
 
 // ── Indicador de pasos ────────────────────────────────────────
@@ -45,13 +53,13 @@ function PasoIndicador({ paso, actual }: { paso: number; actual: Paso }) {
   );
 }
 
-// ── Modal de pago simulado ────────────────────────────────────
+// ── Modal de pago (ahora crea la reserva Y paga en una sola llamada) ──
 function ModalPago({
-  reservaId, monto, onExito, onCerrar,
+  datosReserva, monto, onExito, onCerrar,
 }: {
-  reservaId: string;
+  datosReserva: DatosReserva;
   monto: number;
-  onExito: (referencia: string) => void;
+  onExito: (resultado: { reservaId: string; pagoId: string; referencia: string }) => void;
   onCerrar: () => void;
 }) {
   const [metodo, setMetodo] = useState<"TARJETA" | "YAPE" | "PLIN" | "TRANSFERENCIA">("YAPE");
@@ -69,20 +77,23 @@ function ModalPago({
     const referencia = `OP-${Date.now()}`;
 
     try {
-      const res = await procesarPago({
-        reservaId,
+      const res = await reservarYPagarSoap({
+        ...datosReserva,
         monto,
         metodo,
         referencia,
       });
 
-      if (res.estado === "VERIFICADO") {
-        onExito(referencia);
+      if (res.estadoPago === "VERIFICADO") {
+        onExito({ reservaId: res.reservaId, pagoId: res.pagoId, referencia });
       } else {
-        setError("El pago fue rechazado. Intenta con otro método.");
+        // Rechazo de negocio (monto no coincide, etc.) — la reserva ya quedó
+        // CANCELADA automáticamente por el orquestador
+        setError(res.mensaje || "El pago fue rechazado. Intenta con otro método.");
       }
-    } catch {
-      setError("Error al procesar el pago. Intenta nuevamente.");
+    } catch (err: any) {
+      // Fallo técnico (ej. dato mal formado) — también compensado en el backend
+      setError(err.message || "Error al procesar la reserva y el pago. Intenta nuevamente.");
     } finally {
       setProcesando(false);
     }
@@ -218,7 +229,6 @@ function ModalPago({
 export default function ReservarPage() {
   const router = useRouter();
   const [paso, setPaso] = useState<Paso>(1);
-  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
   // Datos del usuario
@@ -235,11 +245,10 @@ export default function ReservarPage() {
   // Acompañantes
   const [acompanantes, setAcompanantes] = useState<AcompananteRequest[]>([]);
 
-  // Resultado
-  const [reservaCreada, setReservaCreada] = useState<{ id: string; precioTotal: number } | null>(null);
+  // Pago / resultado
   const [mostrarPago, setMostrarPago] = useState(false);
   const [pagoExitoso, setPagoExitoso] = useState(false);
-  const [referenciaPago, setReferenciaPago] = useState("");
+  const [resultadoFinal, setResultadoFinal] = useState<{ reservaId: string; pagoId: string; referencia: string } | null>(null);
 
   useEffect(() => {
     const u = obtenerUsuarioLocal();
@@ -256,10 +265,7 @@ export default function ReservarPage() {
     ? paqueteSeleccionado.precioBase * numPersonas
     : 0;
 
-  // ── Paso 1: completar datos personales ───────────────────
-
-
-  // ── Paso 2: validar datos de la reserva ──────────────────
+  // ── Paso 1: validar datos de la reserva ──────────────────
   function validarReserva() {
     if (!paqueteId) { setError("Selecciona un paquete"); return; }
     if (!fecha) { setError("Selecciona una fecha de viaje"); return; }
@@ -269,7 +275,7 @@ export default function ReservarPage() {
     setPaso(2);
   }
 
-  // ── Paso 3: acompañantes ──────────────────────────────────
+  // ── Paso 2: acompañantes ──────────────────────────────────
   function agregarAcompanante() {
     if (acompanantes.length >= numPersonas - 1) return;
     setAcompanantes((prev) => [...prev, {
@@ -286,30 +292,10 @@ export default function ReservarPage() {
     setAcompanantes((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  // ── Paso 4: crear reserva ─────────────────────────────────
-  async function crearReservaFn() {
-    setError("");
-    setCargando(true);
-    try {
-      const res = await crearReservaSoap({
-        paqueteId,
-        fechaSalida: fecha,
-        numPersonas,
-        acompanantes: acompanantes.filter((a) => a.nombreCompleto.trim()),
-      });
-      setReservaCreada({ id: res.id, precioTotal: res.precioTotal });
-      setPaso(3);
-    } catch (err: any) {
-      setError(err.message || "Error al crear la reserva");
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  // ── Éxito del pago ────────────────────────────────────────
-  function onPagoExitoso(referencia: string) {
+  // ── Éxito del pago (reserva y pago ya se crearon juntos) ──
+  function onPagoExitoso(resultado: { reservaId: string; pagoId: string; referencia: string }) {
     setMostrarPago(false);
-    setReferenciaPago(referencia);
+    setResultadoFinal(resultado);
     setPagoExitoso(true);
   }
 
@@ -326,9 +312,9 @@ export default function ReservarPage() {
             Tu reserva de <strong>{paqueteSeleccionado?.nombre}</strong> ha sido confirmada exitosamente.
           </p>
           <div className="bg-gray-50 rounded-xl p-4 text-left space-y-1 text-sm">
-            <p><span className="font-medium">Reserva ID:</span> {reservaCreada?.id.slice(0, 8)}...</p>
-            <p><span className="font-medium">Referencia de pago:</span> {referenciaPago}</p>
-            <p><span className="font-medium">Total pagado:</span> ${reservaCreada?.precioTotal}</p>
+            <p><span className="font-medium">Reserva ID:</span> {resultadoFinal?.reservaId.slice(0, 8)}...</p>
+            <p><span className="font-medium">Referencia de pago:</span> {resultadoFinal?.referencia}</p>
+            <p><span className="font-medium">Total pagado:</span> ${precioTotal}</p>
             <p><span className="font-medium">Fecha de viaje:</span> {fecha}</p>
           </div>
           <p className="text-xs text-gray-400">
@@ -355,7 +341,6 @@ export default function ReservarPage() {
       {/* Indicador de pasos */}
       <div className="max-w-lg mx-auto mb-8">
         <div className="relative flex items-center justify-between">
-
           {[1, 2, 3].map((p) => (
             <PasoIndicador key={p} paso={p} actual={paso} />
           ))}
@@ -419,9 +404,7 @@ export default function ReservarPage() {
 
           <div className="p-8 space-y-6">
 
-
-
-            {/* ─── PASO 2: Datos de la reserva ─── */}
+            {/* ─── PASO 1: Datos de la reserva ─── */}
             {paso === 1 && (
               <div className="space-y-5">
                 <h3 className="text-lg font-bold text-gray-800">Detalle de tu reserva</h3>
@@ -490,7 +473,7 @@ export default function ReservarPage() {
               </div>
             )}
 
-            {/* ─── PASO 3: Acompañantes ─── */}
+            {/* ─── PASO 2: Acompañantes ─── */}
             {paso === 2 && (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
@@ -559,55 +542,41 @@ export default function ReservarPage() {
               </div>
             )}
 
-            {/* ─── PASO 4: Resumen ─── */}
+            {/* ─── PASO 3: Resumen (ya NO crea la reserva aquí) ─── */}
             {paso === 3 && (
               <div className="space-y-5">
                 <h3 className="text-lg font-bold text-gray-800">Resumen de tu reserva</h3>
 
-                {reservaCreada ? (
-                  <div className="space-y-4">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-700 flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-                      Reserva creada exitosamente. Procede al pago para confirmarla.
-                    </div>
-
-                    <div className="bg-gray-50 rounded-xl p-5 space-y-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Paquete</span>
-                        <span className="font-medium text-right">{paqueteSeleccionado?.nombre}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Fecha de viaje</span>
-                        <span className="font-medium">{fecha}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Personas</span>
-                        <span className="font-medium">{numPersonas}</span>
-                      </div>
-                      {acompanantes.length > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Acompañantes</span>
-                          <span className="font-medium">{acompanantes.length}</span>
-                        </div>
-                      )}
-                      <hr />
-                      <div className="flex justify-between text-base">
-                        <span className="font-bold text-gray-800">Total a pagar</span>
-                        <span className="font-bold text-[#c7663c] text-lg">${reservaCreada.precioTotal}</span>
-                      </div>
-                    </div>
-
-                    <button onClick={() => setMostrarPago(true)}
-                      className="w-full bg-[#c7663c] hover:bg-[#a9552f] text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl">
-                      <CreditCard className="h-5 w-5" /> Proceder al pago
-                    </button>
+                <div className="bg-gray-50 rounded-xl p-5 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Paquete</span>
+                    <span className="font-medium text-right">{paqueteSeleccionado?.nombre}</span>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                    Creando reserva...
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Fecha de viaje</span>
+                    <span className="font-medium">{fecha}</span>
                   </div>
-                )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Personas</span>
+                    <span className="font-medium">{numPersonas}</span>
+                  </div>
+                  {acompanantes.filter((a) => a.nombreCompleto.trim()).length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Acompañantes</span>
+                      <span className="font-medium">{acompanantes.filter((a) => a.nombreCompleto.trim()).length}</span>
+                    </div>
+                  )}
+                  <hr />
+                  <div className="flex justify-between text-base">
+                    <span className="font-bold text-gray-800">Total a pagar</span>
+                    <span className="font-bold text-[#c7663c] text-lg">${precioTotal}</span>
+                  </div>
+                </div>
+
+                <button onClick={() => setMostrarPago(true)}
+                  className="w-full bg-[#c7663c] hover:bg-[#a9552f] text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl">
+                  <CreditCard className="h-5 w-5" /> Proceder al pago
+                </button>
               </div>
             )}
 
@@ -621,7 +590,6 @@ export default function ReservarPage() {
               )}
               {paso === 1 && <div />}
 
-
               {paso === 1 && (
                 <button onClick={validarReserva}
                   className="px-6 py-2.5 bg-[#c7663c] hover:bg-[#a9552f] text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
@@ -629,9 +597,8 @@ export default function ReservarPage() {
                 </button>
               )}
               {paso === 2 && (
-                <button onClick={crearReservaFn} disabled={cargando}
-                  className="px-6 py-2.5 bg-[#c7663c] hover:bg-[#a9552f] disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
-                  {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                <button onClick={() => setPaso(3)}
+                  className="px-6 py-2.5 bg-[#c7663c] hover:bg-[#a9552f] text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
                   Ver resumen <ChevronRight className="h-4 w-4" />
                 </button>
               )}
@@ -644,11 +611,16 @@ export default function ReservarPage() {
         Al reservar, aceptas nuestros términos y condiciones. Nos pondremos en contacto contigo para coordinar los detalles finales.
       </p>
 
-      {/* Modal de pago */}
-      {mostrarPago && reservaCreada && (
+      {/* Modal de pago: ahora crea la reserva Y paga en una sola llamada al orquestador */}
+      {mostrarPago && (
         <ModalPago
-          reservaId={reservaCreada.id}
-          monto={reservaCreada.precioTotal}
+          datosReserva={{
+            paqueteId,
+            fechaSalida: fecha,
+            numPersonas,
+            acompanantes: acompanantes.filter((a) => a.nombreCompleto.trim()),
+          }}
+          monto={precioTotal}
           onExito={onPagoExitoso}
           onCerrar={() => setMostrarPago(false)}
         />
