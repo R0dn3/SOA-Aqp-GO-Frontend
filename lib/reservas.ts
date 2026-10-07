@@ -1,4 +1,4 @@
-// lib/api/reservas.ts
+// lib/reservas.ts
 import { obtenerToken } from "@/lib/auth";
 import api from "@/lib/axios";
 
@@ -46,6 +46,20 @@ export interface PagoResponse {
   estado: string;   // VERIFICADO | RECHAZADO
   referencia: string;
   fechaPago: string;
+}
+
+export interface ReservarYPagarRequest extends ReservaRequest {
+  monto: number;
+  metodo: "TRANSFERENCIA" | "TARJETA" | "YAPE" | "PLIN" | "EFECTIVO";
+  referencia: string;
+}
+
+export interface ReservarYPagarResponse {
+  reservaId: string;
+  estadoReserva: string;  // CONFIRMADA | CANCELADA
+  pagoId: string;
+  estadoPago: string;     // VERIFICADO | RECHAZADO
+  mensaje: string;
 }
 
 export async function crearReserva(data: ReservaRequest): Promise<ReservaResponse> {
@@ -106,6 +120,23 @@ export async function crearReservaSoap(data: ReservaRequest): Promise<{ id: stri
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "No se pudo crear la reserva");
+  }
+  return res.json();
+}
+
+export async function reservarYPagarSoap(data: ReservarYPagarRequest): Promise<ReservarYPagarResponse> {
+  const token = obtenerToken();
+  const res = await fetch("/api/soap/reservar-y-pagar", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo procesar la reserva y el pago");
   }
   return res.json();
 }
