@@ -1,5 +1,7 @@
+//app/api/soap/reservar-y-pagar/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { XMLParser } from "fast-xml-parser";
+import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +23,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
+    // ID de correlación: viaja BFF -> backend y vuelve al navegador
+    const correlationId = randomUUID();
+    const corrHeaders = { "X-Correlation-Id": correlationId };
+
     // 1. Resolver el usuarioId (mismo patrón que crear-reserva)
     const perfilRes = await fetch(`${API_URL}/api/usuarios/perfil`, {
         headers: { Authorization: authHeader },
         cache: "no-store",
     });
     if (!perfilRes.ok) {
-        return NextResponse.json({ error: "No se pudo verificar el usuario" }, { status: perfilRes.status });
+        return NextResponse.json(
+            { error: "No se pudo verificar el usuario" },
+            { status: perfilRes.status, headers: corrHeaders }
+        );
     }
     const perfil = await perfilRes.json();
     const usuarioId = perfil.id;
@@ -79,12 +88,17 @@ export async function POST(request: NextRequest) {
    </soapenv:Body>
 </soapenv:Envelope>`;
 
-    console.log("\n📤 SOAP REQUEST (reservarYPagar) enviado al backend:\n" + envelope + "\n");
+    console.log(`\n🔗 [BFF] correlationId=${correlationId}`);
+    console.log("📤 SOAP REQUEST (reservarYPagar) enviado al backend:\n" + envelope + "\n");
 
-    // 4. Mandarlo al servicio SOAP del orquestador
+    // 4. Mandarlo al servicio SOAP del orquestador, con identidad (JWT) y correlación
     const soapRes = await fetch(`${API_URL}/ws`, {
         method: "POST",
-        headers: { "Content-Type": "text/xml" },
+        headers: {
+            "Content-Type": "text/xml",
+            Authorization: authHeader,
+            "X-Correlation-Id": correlationId,
+        },
         body: envelope,
         cache: "no-store",
     });
@@ -100,17 +114,26 @@ export async function POST(request: NextRequest) {
     if (body?.Fault) {
         return NextResponse.json(
             { error: body.Fault.faultstring || "No se pudo procesar la reserva y el pago" },
-            { status: 500 }
+            { status: 500, headers: corrHeaders }
         );
     }
 
     const r = body?.reservarYPagarResponse;
+    if (!r) {
+        return NextResponse.json(
+            { error: "Respuesta SOAP inesperada del backend" },
+            { status: 502, headers: corrHeaders }
+        );
+    }
 
-    return NextResponse.json({
-        reservaId: r.reservaId,
-        estadoReserva: r.estadoReserva,
-        pagoId: r.pagoId,
-        estadoPago: r.estadoPago,
-        mensaje: r.mensaje,
-    });
+    return NextResponse.json(
+        {
+            reservaId: r.reservaId,
+            estadoReserva: r.estadoReserva,
+            pagoId: r.pagoId,
+            estadoPago: r.estadoPago,
+            mensaje: r.mensaje,
+        },
+        { headers: corrHeaders }
+    );
 }
