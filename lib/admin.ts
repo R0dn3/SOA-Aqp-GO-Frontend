@@ -58,6 +58,62 @@ export interface PagoStatsDto {
   montoTotalVerificado: number;
 }
 
+// ── Mensajería (ESB) ─────────────────────────────────────────
+
+export interface EntregaDto {
+  id: string;
+  estado: "ENTREGADA" | "FALLIDA" | "REPROCESADA";
+  suscriptor: string;
+  eventoTipo: string;
+  reservaId: string;
+  clienteNombre: string;
+  detalle: string;
+  correlationId: string;
+  fecha: string;
+  reprocesable: boolean;
+}
+
+export interface EntregaStatsDto {
+  entregadas: number;
+  fallidas: number;
+  reprocesadas: number;
+}
+
+export interface ResultadoSuscriptorDto {
+  suscriptor: string;
+  estado: string;
+}
+
+export interface AuditoriaDto {
+  id: string;
+  tipoEvento: string;
+  reservaId: string;
+  clienteNombre: string;
+  clienteEmail: string;
+  paqueteNombre: string;
+  monto: string;
+  metodo: string;
+  estadoPago: string;
+  correlationId: string;
+  fecha: string;
+  resultados: ResultadoSuscriptorDto[];
+}
+
+export interface ConfigMensajeriaDto {
+  simularFalloNotificaciones: boolean;
+}
+
+export interface ResultadoReprocesoDto {
+  ok: boolean;
+  mensaje: string;
+}
+
+export interface ResumenReprocesoDto {
+  intentados: number;
+  exitosos: number;
+  fallidos: number;
+}
+
 export interface MetodoPagoConfigDto {
   metodo: "TARJETA" | "YAPE" | "PLIN" | "TRANSFERENCIA" | "EFECTIVO";
   activo: boolean;
@@ -102,5 +158,44 @@ export async function getMetodosPago(): Promise<MetodoPagoConfigDto[]> {
 
 export async function actualizarMetodoPago(metodo: string, activo: boolean): Promise<MetodoPagoConfigDto> {
   const res = await api.patch<MetodoPagoConfigDto>(`/api/admin/metodos-pago/${metodo}`, { activo });
+  return res.data;
+}
+
+export async function getEntregas(): Promise<EntregaDto[]> {
+  const res = await api.get<EntregaDto[]>("/api/admin/esb/entregas");
+  return res.data;
+}
+
+export async function getEntregaStats(): Promise<EntregaStatsDto> {
+  const res = await api.get<EntregaStatsDto>("/api/admin/esb/entregas/stats");
+  return res.data;
+}
+
+export async function getAuditoria(): Promise<AuditoriaDto[]> {
+  const res = await api.get<AuditoriaDto[]>("/api/admin/esb/auditoria");
+  return res.data;
+}
+
+export async function getConfigMensajeria(): Promise<ConfigMensajeriaDto> {
+  const res = await api.get<ConfigMensajeriaDto>("/api/admin/esb/config");
+  return res.data;
+}
+
+export async function actualizarConfigMensajeria(
+  simularFalloNotificaciones: boolean
+): Promise<ConfigMensajeriaDto> {
+  const res = await api.patch<ConfigMensajeriaDto>("/api/admin/esb/config", {
+    simularFalloNotificaciones,
+  });
+  return res.data;
+}
+
+export async function reprocesarEntrega(id: string): Promise<ResultadoReprocesoDto> {
+  const res = await api.post<ResultadoReprocesoDto>(`/api/admin/esb/entregas/${id}/reprocesar`);
+  return res.data;
+}
+
+export async function reprocesarTodas(): Promise<ResumenReprocesoDto> {
+  const res = await api.post<ResumenReprocesoDto>("/api/admin/esb/entregas/reprocesar-todos");
   return res.data;
 }

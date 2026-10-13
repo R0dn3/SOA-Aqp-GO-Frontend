@@ -1,14 +1,15 @@
-
+//app/(admin)/layout.tsx
 "use client";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout as authLogout } from "@/lib/auth";
+import { getEntregaStats } from "@/lib/admin";
 import { useState, useEffect } from "react";
 import {
   Home, Map, CalendarCheck, Users,
   Truck, Settings, PanelLeft,
-  CreditCard, BarChart3, LogOut, Bell,LifeBuoy,
+  CreditCard, BarChart3, LogOut, Bell, LifeBuoy, MessageSquare,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,14 +21,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
-  { href: "/admin",            icon: <Home size={18} />,          label: "Dashboard"   },
-  { href: "/admin/tours",      icon: <Map size={18} />,           label: "Tours"       },
-  { href: "/admin/reservas",   icon: <CalendarCheck size={18} />, label: "Reservas"    },
-  { href: "/admin/usuarios",   icon: <Users size={18} />,         label: "Usuarios"    },
-  { href: "/admin/proveedores",icon: <Truck size={18} />,         label: "Proveedores" },
-  { href: "/admin/pagos",      icon: <CreditCard size={18} />,    label: "Pagos"       },
-  { href: "/admin/soporte",    icon: <LifeBuoy size={18} />,      label: "Soporte"     },
-  { href: "/admin/reportes",   icon: <BarChart3 size={18} />,     label: "Reportes"    },
+  { href: "/admin", icon: <Home size={18} />, label: "Dashboard" },
+  { href: "/admin/tours", icon: <Map size={18} />, label: "Tours" },
+  { href: "/admin/reservas", icon: <CalendarCheck size={18} />, label: "Reservas" },
+  { href: "/admin/usuarios", icon: <Users size={18} />, label: "Usuarios" },
+  { href: "/admin/proveedores", icon: <Truck size={18} />, label: "Proveedores" },
+  { href: "/admin/pagos", icon: <CreditCard size={18} />, label: "Pagos" },
+  { href: "/admin/soporte", icon: <LifeBuoy size={18} />, label: "Soporte" },
+  { href: "/admin/mensajeria", icon: <MessageSquare size={18} />, label: "Mensajería" },
+  { href: "/admin/reportes", icon: <BarChart3 size={18} />, label: "Reportes" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +38,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Almacenamos los datos del usuario autenticado
   const [user, setUser] = useState<{ nombreCompleto: string; email: string } | null>(null);
+
+  // Mensajes del ESB que fallaron y siguen pendientes (campana)
+  const [fallidas, setFallidas] = useState(0);
 
   useEffect(() => {
     const loadUser = () => {
@@ -55,13 +60,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
   }, []);
 
+  // Consulta cada 20 s cuántos mensajes fallidos hay pendientes
+  useEffect(() => {
+    const refrescar = () => {
+      getEntregaStats()
+        .then((s) => setFallidas(s.fallidas))
+        .catch(() => { /* se reintenta en el próximo ciclo */ });
+    };
+    refrescar();
+    const t = setInterval(refrescar, 20000);
+    return () => clearInterval(t);
+  }, []);
+
   const userInitials = user
     ? user.nombreCompleto
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
     : "??";
 
   const handleLogout = async () => {
@@ -125,18 +142,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Acciones — al lado derecho */}
           <div className="flex items-center gap-1 ml-auto">
 
-            {/* Notificaciones */}
+            {/* Notificaciones: mensajes del ESB fallidos pendientes */}
             <Button
+              asChild
               variant="ghost"
               size="icon"
               className="relative h-9 w-9 rounded-lg"
               style={{ color: "#c4956a" }}
             >
-              <Bell size={17} />
-              <span
-                className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-                style={{ background: "#d4663a" }}
-              />
+              <Link
+                href="/admin/mensajeria"
+                title={fallidas > 0 ? `${fallidas} mensaje(s) fallido(s) pendiente(s)` : "Mensajería"}
+              >
+                <Bell size={17} />
+                {fallidas > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                    style={{ background: "#d4663a" }}
+                  >
+                    {fallidas > 9 ? "9+" : fallidas}
+                  </span>
+                )}
+              </Link>
             </Button>
 
             {/* Avatar + dropdown sesión */}
@@ -170,10 +197,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </p>
                 </div>
                 <Link href="/">
-                <DropdownMenuItem className="gap-2 mt-1 cursor-pointer text-sm text-[#4a3020]">
-                  <Settings size={14} className="text-[#8c7b6e]" />
-                  Vista Cliente
-                </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 mt-1 cursor-pointer text-sm text-[#4a3020]">
+                    <Settings size={14} className="text-[#8c7b6e]" />
+                    Vista Cliente
+                  </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator className="bg-[#e8d8cc]" />
 

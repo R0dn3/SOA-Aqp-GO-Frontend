@@ -99,7 +99,10 @@ export async function procesarPago(data: PagoRequest): Promise<PagoResponse> {
 }
 
 export async function getReservaSoap(id: string): Promise<ReservaResponse> {
-  const res = await fetch(`/api/soap/consultar-reserva/${id}`);
+  const token = obtenerToken(); // CAMBIO: ahora se manda el token
+  const res = await fetch(`/api/soap/consultar-reserva/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "No se pudo cargar el detalle de la reserva");

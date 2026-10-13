@@ -1,3 +1,4 @@
+// mis-reservas
 import { NextRequest, NextResponse } from "next/server";
 import { XMLParser } from "fast-xml-parser";
 
@@ -40,7 +41,10 @@ export async function GET(request: NextRequest) {
 
     const soapRes = await fetch(`${API_URL}/ws`, {
         method: "POST",
-        headers: { "Content-Type": "text/xml" },
+        headers: {
+            "Content-Type": "text/xml",
+            Authorization: authHeader, // CAMBIO: el backend ahora exige el JWT
+        },
         body: envelope,
         cache: "no-store",
     });

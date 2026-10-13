@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
     // 4. Mandarlo al servicio SOAP
     const soapRes = await fetch(`${API_URL}/ws`, {
         method: "POST",
-        headers: { "Content-Type": "text/xml" },
+        headers: {
+            "Content-Type": "text/xml",
+            Authorization: authHeader, // CAMBIO: el backend ahora exige el JWT
+        },
         body: envelope,
         cache: "no-store",
     });

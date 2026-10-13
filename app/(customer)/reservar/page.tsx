@@ -269,8 +269,8 @@ export default function ReservarPage() {
   function validarReserva() {
     if (!paqueteId) { setError("Selecciona un paquete"); return; }
     if (!fecha) { setError("Selecciona una fecha de viaje"); return; }
-    const hoy = new Date().toISOString().split("T")[0];
-    if (fecha <= hoy) { setError("La fecha debe ser futura"); return; }
+    //const hoy = new Date().toISOString().split("T")[0];
+    //if (fecha <= hoy) { setError("La fecha debe ser futura"); return; }
     setError("");
     setPaso(2);
   }
@@ -318,7 +318,8 @@ export default function ReservarPage() {
             <p><span className="font-medium">Fecha de viaje:</span> {fecha}</p>
           </div>
           <p className="text-xs text-gray-400">
-            Recibirás un email con todos los detalles de tu viaje.
+            Te avisaremos con una notificación en la campana de la barra superior.
+            También puedes ver el detalle en Mis reservas.
           </p>
           <button onClick={() => router.push("/")}
             className="w-full bg-[#c7663c] hover:bg-[#a9552f] text-white py-3 rounded-xl font-semibold transition-all">
@@ -435,7 +436,7 @@ export default function ReservarPage() {
                     <div className="relative mt-1">
                       <Calendar size={16} className="absolute left-3 top-3 text-gray-400" />
                       <input type="date" value={fecha}
-                        min={new Date().toISOString().split("T")[0]}
+                        //min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => setFecha(e.target.value)}
                         className="w-full border border-gray-200 p-2.5 pl-9 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#c7663c]/30 focus:border-[#c7663c]" />
                     </div>

@@ -1,4 +1,5 @@
 // components/layout/navigation.tsx
+// components/layout/navigation.tsx
 "use client";
 
 import Link from "next/link";
@@ -6,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Menu, X, User, LogOut, Plane } from "lucide-react";
 import { logout as authLogout } from "@/lib/auth"; // Ajusta la ruta según tu estructura
+import CampanaNotificaciones from "@/components/layout/CampanaNotificaciones";
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -74,11 +76,10 @@ export default function Navigation() {
               <Link
                 key={link.path}
                 href={link.path}
-                className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-                  isActive(link.path)
-                    ? "bg-[#d4663a] text-white"
-                    : "text-[#f4e8d9] hover:bg-[#3d2820] hover:text-white"
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all duration-300 ${isActive(link.path)
+                  ? "bg-[#d4663a] text-white"
+                  : "text-[#f4e8d9] hover:bg-[#3d2820] hover:text-white"
+                  }`}
               >
                 {link.label}
               </Link>
@@ -89,6 +90,7 @@ export default function Navigation() {
           <div className="hidden lg:flex items-center gap-3">
             {isAuthenticated ? (
               <>
+                <CampanaNotificaciones />
                 <Link
                   href="/dashboard"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3d2820] text-[#f4e8d9] hover:bg-[#d4663a] hover:text-white transition-all"
@@ -113,13 +115,16 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* MOBILE BUTTON */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden text-white p-2"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* MOBILE: campana + botón */}
+          <div className="lg:hidden flex items-center gap-1">
+            {isAuthenticated && <CampanaNotificaciones />}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-white p-2"
+            >
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {/* MOBILE MENU */}
@@ -130,11 +135,10 @@ export default function Navigation() {
                 key={link.path}
                 href={link.path}
                 onClick={() => setIsOpen(false)}
-                className={`block px-4 py-3 rounded-lg mb-1 transition-all ${
-                  isActive(link.path)
-                    ? "bg-[#d4663a] text-white"
-                    : "text-[#f4e8d9] hover:bg-[#3d2820]"
-                }`}
+                className={`block px-4 py-3 rounded-lg mb-1 transition-all ${isActive(link.path)
+                  ? "bg-[#d4663a] text-white"
+                  : "text-[#f4e8d9] hover:bg-[#3d2820]"
+                  }`}
               >
                 {link.label}
               </Link>

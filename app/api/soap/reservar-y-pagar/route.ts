@@ -56,16 +56,18 @@ export async function POST(request: NextRequest) {
     // 3. Bloque de acompañantes: el wrapper <orq:acompanante> va en el
     //    namespace del orquestador, pero sus campos internos reusan el tipo
     //    acompananteItem importado de reserva.xsd, en namespace "res".
+    // 3. Bloque de acompañantes: todo el bloque va en el namespace del orquestador
+    //    (tipo acompananteOrq definido en orquestador.xsd).
     const acompanantesXml = acompanantes
         .map(
             (a: any) => `
       <orq:acompanante>
-         <res:nombreCompleto>${escapeXml(a.nombreCompleto)}</res:nombreCompleto>
-         <res:dniPasaporte>${escapeXml(a.dniPasaporte)}</res:dniPasaporte>
-         <res:pais>${escapeXml(a.pais)}</res:pais>
-         <res:fechaNacimiento>${escapeXml(a.fechaNacimiento)}</res:fechaNacimiento>
-         <res:genero>${escapeXml(a.genero)}</res:genero>
-         <res:datosAdicionales>${escapeXml(a.datosAdicionales)}</res:datosAdicionales>
+         <orq:nombreCompleto>${escapeXml(a.nombreCompleto)}</orq:nombreCompleto>
+         <orq:dniPasaporte>${escapeXml(a.dniPasaporte)}</orq:dniPasaporte>
+         <orq:pais>${escapeXml(a.pais)}</orq:pais>
+         <orq:fechaNacimiento>${escapeXml(a.fechaNacimiento)}</orq:fechaNacimiento>
+         <orq:genero>${escapeXml(a.genero)}</orq:genero>
+         <orq:datosAdicionales>${escapeXml(a.datosAdicionales)}</orq:datosAdicionales>
       </orq:acompanante>`
         )
         .join("");

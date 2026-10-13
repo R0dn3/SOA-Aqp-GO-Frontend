@@ -1,3 +1,4 @@
+// consultar-reserva/[id]
 import { NextRequest, NextResponse } from "next/server";
 import { XMLParser } from "fast-xml-parser";
 
@@ -11,8 +12,14 @@ interface RouteParams {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    // CORRECCIÓN: Desempaquetamos la promesa 'params' usando await antes de usar 'id'
+    // Desempaquetamos la promesa 'params' usando await antes de usar 'id'
     const { id } = await params;
+
+    // CAMBIO: ahora se exige el token y se reenvía al backend
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader) {
+        return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
 
     const envelope = `<?xml version="1.0"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:res="http://aqpgo.com/reservas">
@@ -28,7 +35,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const soapRes = await fetch(`${API_URL}/ws`, {
         method: "POST",
-        headers: { "Content-Type": "text/xml" },
+        headers: {
+            "Content-Type": "text/xml",
+            Authorization: authHeader, // CAMBIO: el backend ahora exige el JWT
+        },
         body: envelope,
         cache: "no-store",
     });
@@ -40,8 +50,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const parsed = parser.parse(xmlText);
     const body = parsed?.Envelope?.Body;
 
+    // CAMBIO: un rechazo de seguridad se informa como 403, no como "no encontrada"
     if (body?.Fault) {
-        return NextResponse.json({ error: body.Fault.faultstring || "Reserva no encontrada" }, { status: 404 });
+        const msg: string = body.Fault.faultstring || "Reserva no encontrada";
+        const noAutorizado = /autenticaci|No autorizado/i.test(msg);
+        return NextResponse.json({ error: msg }, { status: noAutorizado ? 403 : 404 });
     }
 
     const r = body?.consultarReservaResponse;

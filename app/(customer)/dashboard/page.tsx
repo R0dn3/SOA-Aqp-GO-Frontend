@@ -1,4 +1,4 @@
-
+//app/(customer)/dashboard/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getMisReservasSoap, getReservaSoap, cancelarReserva, ReservaResponse } from "@/lib/reservas";
 import { ModalPago } from "@/components/layout/ModalPago";
 import PerfilCard from "@/components/layout/PerfilCard";
+import { getAvisosPendientes } from "@/lib/notificaciones";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -36,6 +37,8 @@ export default function DashboardPage() {
   const [reservas, setReservas] = useState<ReservaResponse[]>([]);
   const [cargandoReservas, setCargandoReservas] = useState(true);
   const [errorReservas, setErrorReservas] = useState("");
+  // Reservas cuyo aviso falló y sigue pendiente de reenvío
+  const [avisosPendientes, setAvisosPendientes] = useState<string[]>([]);
 
   // Modal de pago
   const [mostrarPago, setMostrarPago] = useState(false);
@@ -66,6 +69,9 @@ export default function DashboardPage() {
         setErrorReservas("No se pudieron cargar tus reservas.");
       })
       .finally(() => setCargandoReservas(false));
+    getAvisosPendientes()
+      .then((lista) => setAvisosPendientes(lista.map((a) => a.reservaId)))
+      .catch(() => { /* si falla, simplemente no se muestra el aviso */ });
   }, [router]);
 
   // Calcular total de páginas
@@ -181,6 +187,18 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {avisosPendientes.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl flex items-start gap-2 text-sm">
+                <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+                <p>
+                  <span className="font-semibold">Aviso pendiente.</span>{" "}
+                  Tu reserva está registrada, pero aún no pudimos enviarte la notificación
+                  {" "}({avisosPendientes.map((id) => `#${id.slice(0, 8)}`).join(", ")}).
+                  La reintentaremos automáticamente; no necesitas hacer nada.
+                </p>
+              </div>
+            )}
+
             {!cargandoReservas && reservas.length === 0 && (
               <div className="bg-white rounded-2xl p-8 text-center shadow">
                 <p className="text-gray-500 mb-4">No tienes reservas aún.</p>
@@ -230,6 +248,12 @@ export default function DashboardPage() {
                     <Clock size={16} /> {reserva.estado}
                   </span>
                 </div>
+
+                {avisosPendientes.includes(reserva.id) && (
+                  <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Aviso pendiente: tu reserva está al día, pero la notificación aún no se entrega.
+                  </p>
+                )}
 
                 {/* Botones de acción según estado */}
                 <div className="mt-4 flex gap-3 flex-wrap">

@@ -1,3 +1,4 @@
+// resumen-reportes
 import { NextRequest, NextResponse } from "next/server";
 import { XMLParser } from "fast-xml-parser";
 
@@ -10,15 +11,13 @@ export async function GET(request: NextRequest) {
     if (!authHeader) {
         return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
-    const token = authHeader.replace(/^Bearer\s+/i, "");
 
+    // CAMBIO: ya no se manda el token dentro del XML; viaja en el header Authorization
     const envelope = `<?xml version="1.0"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:res="http://aqpgo.com/reportes">
    <soapenv:Header/>
    <soapenv:Body>
-      <res:resumenReportesRequest>
-         <res:token>${token}</res:token>
-      </res:resumenReportesRequest>
+      <res:resumenReportesRequest/>
    </soapenv:Body>
 </soapenv:Envelope>`;
 
@@ -26,7 +25,10 @@ export async function GET(request: NextRequest) {
 
     const soapRes = await fetch(`${API_URL}/ws`, {
         method: "POST",
-        headers: { "Content-Type": "text/xml" },
+        headers: {
+            "Content-Type": "text/xml",
+            Authorization: authHeader, // CAMBIO: el backend ahora exige el JWT
+        },
         body: envelope,
         cache: "no-store",
     });
